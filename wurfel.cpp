@@ -5,10 +5,13 @@
 
 #define SEITE 1000
 #define RAND_MAX 1000
-#define THREADCOUNT 4
+#define THREADCOUNT 1
 
 enum direction{X,Y,Z};
 
+/* 
+    Variablen Deklaration 
+*/
 // Wuerfel Arrays
 double wuerfel1[SEITE][SEITE][SEITE];
 double wuerfel2[SEITE][SEITE][SEITE];
@@ -19,6 +22,9 @@ pthread_t threadIds[THREADCOUNT];   //
 int startValues[THREADCOUNT][SEITE][SEITE][SEITE];
 int endValues[THREADCOUNT][SEITE][SEITE][SEITE];
 
+/* 
+    Funktionsdeklaration 
+*/
 void init_wuerfel(double cube[SEITE][SEITE][SEITE]){
     for (int i = 0; i < SEITE; i++)
     {
@@ -30,27 +36,6 @@ void init_wuerfel(double cube[SEITE][SEITE][SEITE]){
             }
         }
     }
-}
-
-void setThreadValues(int * start[THREADCOUNT][SEITE][SEITE][SEITE], int * end[THREADCOUNT][SEITE][SEITE][SEITE], int direction, int startValue, int EndValue){
-    int bias = 
-    for (int i = 0; i < THREADCOUNT; i++)
-    {
-        if (direction == X)
-        {
-                        
-        } 
-        else if (direction == Y)
-        {
-            
-        }
-        else if (direction == Z)
-        {
-            /* code */
-        }
-        
-    }
-    
 }
 
 double berechnung(double value){
@@ -69,9 +54,9 @@ void trans_cube(
     {
     for (int x = x_start; x < x_stop; x++)
     {
-        for (int y = 0; y < y_stop; y++)
+        for (int y = y_start; y < y_stop; y++)
         {
-            for (int z = 0; z < z_stop; z++)
+            for (int z = z_start; z < z_stop; z++)
             {
                 *end_cube[x][y][z] = berechnung(*start_cube[x][y][z]);
             }
@@ -79,10 +64,36 @@ void trans_cube(
     }
 }
 
-void createThreads(int num, void * funtion){
-    for (int i = 0; i < THREADCOUNT; i++)
+void createThreads(int num, int direction){
+    int start = 0;
+    int stop = 0; 
+    for (int i = 0; i < num; i++)
     {
-        pthread_create(threadIds+i, NULL, (void *)trans_cube, )
+        // set start value
+        start = SEITE/num * i;
+
+        // set stop value
+        if ((1+i == num) && (SEITE%num > 0))
+        {
+            stop = SEITE/num * (i + 1) +1;
+        }     
+        else {
+            stop = SEITE/num * (i + 1);
+        }
+        
+        // create threads in depend of direction
+        if (direction == X)
+        {
+            pthread_create(threadIds+i, NULL, (void *)trans_cube(&wuerfel1, &wuerfel2, start, stop, 0, SEITE, 0, SEITE), )
+        }
+        else if (direction == Y)
+        {
+            pthread_create(threadIds+i, NULL, (void *)trans_cube(&wuerfel1, &wuerfel2, 0, SEITE, start, stop, 0, SEITE), )
+        }
+        else if (direction == Z)
+        {
+            pthread_create(threadIds+i, NULL, (void *)trans_cube(&wuerfel1, &wuerfel2, 0, SEITE, 0, SEITE, start, stop), )
+        }
     }
     
 }
@@ -90,6 +101,7 @@ void createThreads(int num, void * funtion){
 int main(int argc, char const *argv[])
 {
     init_wuerfel(wuerfel1);
+    createThreads(THREADCOUNT, X);   
     return 0;
 }
 
