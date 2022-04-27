@@ -4,11 +4,15 @@
 #include <pthread.h>
 #include <chrono>
 
-#define SEITE 1000
-#define RAND_MAX 1000
-#define THREADCOUNT 1
+#define SEITE 10
+#define RANDMAX 1000
+#define THREADCOUNT 4
 
 enum direction{X,Y,Z};
+
+typedef float LINIE[SEITE];
+typedef LINIE FLACHE[SEITE];
+typedef FLACHE WURFEL[SEITE];
 
 /* 
     Variablen Deklaration 
@@ -26,8 +30,8 @@ int endValues[THREADCOUNT][SEITE][SEITE][SEITE];
 
 struct threadArgs
 {
-    double * wuerfel1[SEITE][SEITE][SEITE];
-    double * wuerfel2[SEITE][SEITE][SEITE];
+    WURFEL *wuerfel1;
+    WURFEL *wuerfel2;
     int x_start; 
     int x_stop;
     int y_start; 
@@ -41,53 +45,56 @@ struct threadArgs
 /* 
     Funktionsdeklaration 
 */
-void init_wuerfel(double cube[SEITE][SEITE][SEITE]){
+void init_wuerfel(WURFEL * cube){
     for (int i = 0; i < SEITE; i++)
     {
         for (int j = 0; j < SEITE; j++)
         {
             for (int k = 0; k < SEITE; k++)
             {
-                cube[i][j][k] = rand();
+                (*cube)[i][j][k] = rand()%RANDMAX;
             }
         }
     }
 }
 
 // Funktion der Berechnung
-double berechnung(double value){
-    double returnValue = 0;
-    returnValue = sin(value)*100;
-    returnValue = cos(returnValue)*100;
+float berechnung(float value){
+    float returnValue = value;
+    for (int i = 0; i < 20; i++)
+    {
+        returnValue = sin(returnValue)*100;
+        returnValue = cos(returnValue)*100;
+    }
     return returnValue;
 }
 
 // Berechung des Wertes einer Zelle und speichern im anderen Wuerfel
-void trans_cube(struct threadArgs args)
+void trans_cube(void * args)
     {
         // Varibalendeklaration
-
+    struct threadArgs * stArgs = (struct threadArgs *)args;
     std::chrono::steady_clock::time_point thStart = std::chrono::steady_clock::now(); // nehmen der Startziet
     std::chrono::steady_clock::time_point thStop;
 
-    for (int x = args.x_start; x < args.x_stop; x++)
+    for (int x = stArgs->x_start; x < stArgs->x_stop; x++)
     {
-        for (int y = args.y_start; y < args.y_stop; y++)
+        for (int y = stArgs->y_start; y < stArgs->y_stop; y++)
         {
-            for (int z = args.z_start; z < args.z_stop; z++)
+            for (int z = stArgs->z_start; z < stArgs->z_stop; z++)
             {
-                *(args.wuerfel1)[x][y][z] = berechnung(*(args.wuerfel2)[x][y][z]);
+                *(stArgs->wuerfel2)[x][y][z] = berechnung(*(stArgs->wuerfel1)[x][y][z]);
             }
         }
     }
 
     // nehmen der Endzeit des threads
     thStop = std::chrono::steady_clock::now();
-    printf("Der Thread %i hat %ius fuer die Berechnung benoetigt\n",args.number,std::chrono::duration_cast<std::chrono::microseconds>(thStop - thStart).count());
+    printf("Der Thread %i hat %ius fuer die Berechnung benoetigt\n",stArgs->number,std::chrono::duration_cast<std::chrono::microseconds>(thStop - thStart).count());
 }
 
 // Thread anlegen und Grenzen festlegen
-void createThreads(int num, int direction){
+void createThreads(int num, int direction, WURFEL * wuerfel1, WURFEL * wuerfel2){
     int start = 0;
     int stop = 0; 
 
@@ -96,6 +103,11 @@ void createThreads(int num, int direction){
 
     for (int i = 0; i < num; i++)
     {
+        // set cube adresses 
+        (args+i)->wuerfel1 = wuerfel1;
+        (args+i)->wuerfel2 = wuerfel2;
+        // set thread number
+        (args+i)->number = i;
         // set start value
         start = SEITE/num * i;
 
@@ -162,15 +174,15 @@ void waitForThreads(pthread_t * treadId){
 int main(int argc, char const *argv[])
 {
     //Wuerfel Arrays
-    double wuerfel1[SEITE][SEITE][SEITE];
-    double wuerfel2[SEITE][SEITE][SEITE];
+    WURFEL wuerfel1;
+    WURFEL wuerfel2;
 
     // Startzeitpunkt nehmen
     allStart = std::chrono::steady_clock::now();
     
     // Wuerfel inital fuellen
-    init_wuerfel(wuerfel1);
-    createThreads(THREADCOUNT, X);   
+    init_wuerfel(&wuerfel1);
+    createThreads(THREADCOUNT, X, &wuerfel1, &wuerfel2);   
     waitForThreads(tId);
 
     // nehmen der Endzeit
