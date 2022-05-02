@@ -4,7 +4,7 @@
 #include <pthread.h>
 #include <chrono>
 
-#define SEITE 10
+#define SEITE 100
 #define RANDMAX 1000
 #define THREADCOUNT 4
 
@@ -61,7 +61,7 @@ void init_wuerfel(WURFEL * cube){
 // Funktion der Berechnung
 float berechnung(float value){
     float returnValue = value;
-    for (int i = 0; i < 20; i++)
+    for (int i = 0; i < 2000; i++)
     {
         returnValue = sin(returnValue)*100;
         returnValue = cos(returnValue)*100;
@@ -71,7 +71,7 @@ float berechnung(float value){
 
 // Berechung des Wertes einer Zelle und speichern im anderen Wuerfel
 void trans_cube(void * args)
-    {
+{
         // Varibalendeklaration
     struct threadArgs * stArgs = (struct threadArgs *)args;
     std::chrono::steady_clock::time_point thStart = std::chrono::steady_clock::now(); // nehmen der Startziet
@@ -83,7 +83,7 @@ void trans_cube(void * args)
         {
             for (int z = stArgs->z_start; z < stArgs->z_stop; z++)
             {
-                *(stArgs->wuerfel2)[x][y][z] = berechnung(*(stArgs->wuerfel1)[x][y][z]);
+                (* stArgs->wuerfel2)[x][y][z] = berechnung ( (* stArgs->wuerfel1)[x][y][z]);
             }
         }
     }
