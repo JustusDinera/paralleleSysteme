@@ -25,9 +25,7 @@ std::chrono::steady_clock::time_point allStop;
 
 // Variables for threads
 pthread_barrier_t wait;
-pthread_t tId[THREADCOUNT];   // 
-int startValues[THREADCOUNT][SEITE][SEITE][SEITE];
-int endValues[THREADCOUNT][SEITE][SEITE][SEITE];
+pthread_t tId[THREADCOUNT];   
 
 struct threadArgs
 {
@@ -218,4 +216,5 @@ int main(int argc, char const *argv[])
     // Endzeitpunktnehmen
     return 0;
 }
+
 
