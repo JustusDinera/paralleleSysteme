@@ -4,9 +4,10 @@
 #include <pthread.h>
 #include <chrono>
 
-#define SEITE 100
+#define SEITE 10
 #define RANDMAX 1000
 #define THREADCOUNT 4
+#define CYCLE 2
 
 enum direction{X,Y,Z};
 
@@ -23,10 +24,8 @@ std::chrono::steady_clock::time_point allStop;
 
 
 // Variables for threads
-//pthread_mutex_t mutex[THREADCOUNT]; // Mutexe fuer Threads
-pthread_t tId[THREADCOUNT];   // 
-int startValues[THREADCOUNT][SEITE][SEITE][SEITE];
-int endValues[THREADCOUNT][SEITE][SEITE][SEITE];
+pthread_barrier_t wait;
+pthread_t tId[THREADCOUNT];   
 
 struct threadArgs
 {
@@ -72,25 +71,47 @@ float berechnung(float value){
 // Berechung des Wertes einer Zelle und speichern im anderen Wuerfel
 void trans_cube(void * args)
 {
-        // Varibalendeklaration
+    // Varibalendeklaration
     struct threadArgs * stArgs = (struct threadArgs *)args;
     std::chrono::steady_clock::time_point thStart = std::chrono::steady_clock::now(); // nehmen der Startziet
+    std::chrono::steady_clock::time_point thCycle = thStart;
     std::chrono::steady_clock::time_point thStop;
 
-    for (int x = stArgs->x_start; x < stArgs->x_stop; x++)
+    for (int i = 0; i < CYCLE; i++)
     {
-        for (int y = stArgs->y_start; y < stArgs->y_stop; y++)
+        for (int x = stArgs->x_start; x < stArgs->x_stop; x++)
         {
-            for (int z = stArgs->z_start; z < stArgs->z_stop; z++)
+            for (int y = stArgs->y_start; y < stArgs->y_stop; y++)
             {
-                (* stArgs->wuerfel2)[x][y][z] = berechnung ( (* stArgs->wuerfel1)[x][y][z]);
+                for (int z = stArgs->z_start; z < stArgs->z_stop; z++)
+                {
+                    if (i%2 == 0)
+                    {
+                        (* stArgs->wuerfel2)[x][y][z] = berechnung((*stArgs->wuerfel1)[x][y][z]);
+                    }
+                    else 
+                    {
+                        (* stArgs->wuerfel1)[x][y][z] = berechnung((*stArgs->wuerfel2)[x][y][z]);
+                    }
+                }
             }
+        }
+        
+        thStop = std::chrono::steady_clock::now();
+        printf("Der Thread %i hat %ius fuer die Berechnung des %i. Wuerfel benoetigt\n",stArgs->number,std::chrono::duration_cast<std::chrono::microseconds>(thStop - thCycle).count(), (i+1));
+        thCycle = thStop;
+
+        // threads synchronisieren ausser beim letzten Durchlauf
+        if (i < CYCLE - 1)
+        {
+            pthread_barrier_wait(&wait);
         }
     }
 
     // nehmen der Endzeit des threads
     thStop = std::chrono::steady_clock::now();
-    printf("Der Thread %i hat %ius fuer die Berechnung benoetigt\n",stArgs->number,std::chrono::duration_cast<std::chrono::microseconds>(thStop - thStart).count());
+    printf("Der Thread %i hat %ius fuer die Berechnung des gesamten Threads benoetigt\n",stArgs->number,std::chrono::duration_cast<std::chrono::microseconds>(thStop - thStart).count());
+
 }
 
 // Thread anlegen und Grenzen festlegen
@@ -177,6 +198,9 @@ int main(int argc, char const *argv[])
     WURFEL wuerfel1;
     WURFEL wuerfel2;
 
+    // initialisiere Barriere
+    pthread_barrier_init(&wait,NULL,4);
+
     // Startzeitpunkt nehmen
     allStart = std::chrono::steady_clock::now();
     
@@ -192,4 +216,5 @@ int main(int argc, char const *argv[])
     // Endzeitpunktnehmen
     return 0;
 }
+
 
