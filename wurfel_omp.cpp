@@ -1,7 +1,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <random>
-#include <openmpi/
+//#include <openmpi/
 #include <chrono>
 
 #define SEITE 100
