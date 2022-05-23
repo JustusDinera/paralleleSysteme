@@ -1,13 +1,14 @@
 #include <math.h>
 #include <stdio.h>
 #include <random>
-//#include <openmpi/
+#include <omp.h>
 #include <chrono>
 
 #define SEITE 100
 #define RANDMAX 1000
 #define THREADCOUNT 4
 #define DIRECTION X
+#define COUNTS 2
 
 enum direction{X,Y,Z};
 
@@ -60,7 +61,7 @@ void init_wuerfel(WURFEL * cube){
 // Funktion der Berechnung
 float berechnung(float value){
     float returnValue = value;
-    for (int i = 0; i < 2000; i++)
+    for (int i = 0; i < 200; i++)
     {
         returnValue = sin(returnValue)*100;
         returnValue = cos(returnValue)*100;
@@ -68,56 +69,28 @@ float berechnung(float value){
     return returnValue;
 }
 
+// Initial Startparameter
+void initParams(threadArgs *args){
 
-
-
-void waitForThreads(pthread_t * treadId){
-    for (int i = 0; i < THREADCOUNT; i++)
-    {
-        pthread_join(tId[i], NULL);
-    }
-}
-
-int main(int argc, char const *argv[])
-{
-    //Wuerfel Arrays
-    WURFEL wuerfel1;
-    WURFEL wuerfel2;
-
-    // Startzeitpunkt nehmen
-    allStart = std::chrono::steady_clock::now();
-    
-    // Start und Stop Varibale
+        // Start und Stop Varibale
     int start = 0;
     int stop = 0;
 
-    // Zeitvatiable
-    std::chrono::steady_clock::time_point thStart[THREADCOUNT]; // nehmen der Startziet
-    std::chrono::steady_clock::time_point thStop[THREADCOUNT];
 
-    // Parameter der Threads
-    threadArgs args[THREADCOUNT];
-
-    // Wuerfel inital fuellen
-    init_wuerfel(&wuerfel1);
-
-
-    // Initial Startparameter
-#pragma omp for
-    for (int i = 0; i < THREADCOUNT; i++)
+    for (int i = 0; i < omp_get_num_threads(); i++)
     {
         // set thread number
         args[i].number = i;
         // set start value
-        start = SEITE/THREADCOUNT * i;
+        start = SEITE/omp_get_num_threads() * i;
 
         // set stop value
-        if ((1+i == THREADCOUNT) && (SEITE%THREADCOUNT > 0))
+        if ((1+i == omp_get_num_threads()) && (SEITE%omp_get_num_threads() > 0))
         {
-            stop = SEITE/THREADCOUNT * (i + 1) +1;
+            stop = SEITE/omp_get_num_threads() * (i + 1) +1;
         }     
         else {
-            stop = SEITE/THREADCOUNT * (i + 1);
+            stop = SEITE/omp_get_num_threads() * (i + 1);
         }
     
         // in depency of direction set thread args and start it 
@@ -132,7 +105,7 @@ int main(int argc, char const *argv[])
             args[i].z_stop = SEITE;
 
             // start thread
-            pthread_create((tId+i), NULL, (void *(*)(void*))trans_cube, (void *)(args + i));
+            //pthread_create((tId+i), NULL, (void *(*)(void*))trans_cube, (void *)(args + i));
         }
         else if (DIRECTION == Y)
         {
@@ -161,35 +134,74 @@ int main(int argc, char const *argv[])
             //pthread_create((tId+i), NULL, (void *(*)(void*))trans_cube, (void *)(args + i));
         }
     }
+}
 
-#pragma omp barrier
+
+void waitForThreads(pthread_t * treadId){
+    for (int i = 0; i < THREADCOUNT; i++)
+    {
+        pthread_join(tId[i], NULL);
+    }
+}
+
+int main(int argc, char const *argv[])
+{
+    //Wuerfel Arrays
+    WURFEL wuerfel1;
+    WURFEL wuerfel2;
+
+    // Startzeitpunkt nehmen
+    allStart = std::chrono::steady_clock::now();
+    
+
+    // Zeitvatiable
+    std::chrono::steady_clock::time_point thStart[omp_get_max_threads()]; // nehmen der Startziet
+    std::chrono::steady_clock::time_point thStop[omp_get_max_threads()];
+
+
+
+    // Wuerfel inital fuellen
+    init_wuerfel(&wuerfel1);
+
+    // 
+    
 
     allStart = std::chrono::steady_clock::now();
 
-#pragma omp for
     //struct threadArgs * stArgs = (struct threadArgs *)args;
-    for (int i = 0; i < THREADCOUNT; i++)
+    for (int i = 0; i < COUNTS; i++)
     {
-        for (int x = args[i].x_start; x < args[i].x_stop; x++){
-            if (x == args[i].x_start)
+#pragma omp parallel
+{
+    thStart[i] = std::chrono::steady_clock::now();
+    for (int x = 0; x < SEITE; x++)
+    {
+        for (int y = 0; y < SEITE; y++)
+        {
+            for (int z = 0; z < SEITE; z++)
             {
-                thStart[THREADCOUNT] = std::chrono::steady_clock::now(); // nehmen der Startziet
-            }
-        
-            for (int y = args[i].y_start; y < args[i].y_stop; y++)
-            {
-                for (int z = args[i].z_start; z < args[i].z_stop; z++)
+                if (i%2 == 0)
                 {
                     wuerfel2[x][y][z] = berechnung(wuerfel1[x][y][z]);
                 }
+                else
+                {
+                    wuerfel1[x][y][z] = berechnung(wuerfel2[x][y][z]);
+                }
             }
         }
-        // nehmen der Endzeit des threads
-        thStop[i] = std::chrono::steady_clock::now();
-        printf("Der Thread %i hat %ius fuer die Berechnung benoetigt\n",omp_get_thread_num(),std::chrono::duration_cast<std::chrono::microseconds>(thStop[i] - thStart[i]).count());
     }
-#pragma omp barrier
-
+       
+    // nehmen der Endzeit des threads
+    thStop[i] = std::chrono::steady_clock::now();
+    printf("Der Thread %i hat %ius fuer die Berechnung von Wuerfel %i benoetigt\n",omp_get_thread_num(),std::chrono::duration_cast<std::chrono::microseconds>(thStop[i] - thStart[i]).count(), i);
+    #pragma omp barrier
+    #pragma omp single
+    {
+    }
+}
+    printf("---  Wurfel %i fertig berechnet  ---\n", i);
+    }
     // nehmen der Endzeit
     allStop = std::chrono::steady_clock::now();
     printf("Die Wuerfelberechnung hat %ius benoetigt",std::chrono::duration_cast<std::chrono::microseconds>(allStop - allStart).count());
