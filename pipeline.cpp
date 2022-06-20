@@ -3,26 +3,63 @@
 #include <random>
 #include <vector>
 
+#define BUFFER_MAX 10
+
+/**
+ * Used as a modulo operator
+ * as <tt> a % b = (a & (b − 1)) </tt>
+ * where \c a is a positive index in the buffer and
+ * \c b is the (power of two) size of the buffer.
+ */
+#define BUFFER_MASK (BUFFER_MAX-1)
+
+/**
+ * Simplifies the use of <tt>struct BUFFER</tt>.
+ */
+//typedef struct BUFFER BUFFER;
+
+/**
+ * Structure which holds a ring buffer.
+ * The buffer contains a buffer array
+ * as well as metadata for the ring buffer.
+ */
+typedef struct BUFFER {
+    /** Buffer memory. */
+    char buffer[BUFFER_MAX];
+    /** Index of tail. */
+    uint tailIndex;
+    /** Index of head. */
+    uint headIndex;
+};
+
 class FIFO
 {
 private:
-    int fuellstandMax = 10; 
-    std::vector<int> puffer;
-
+    BUFFER buffer;
 public:
-    FIFO();
+    FIFO(/* args */);
+    
     ~FIFO();
-    // returns the max value of the puffer
-    int FIFO::getMaxFuellstand();
-    // returns the size of the puffer
-    int getFuellstand();
-    /*
-    * @brief set a new value if the puffer is not full 
-    * @param int value new value for the puffer
-    * @return 0 if the push was successfull, 1 if the push didn't work (puffer full)
-    */
-    int push(int value);
-    int pop();
+    
+    void bufferInit();
+    
+    void bufferQueue(char data);
+    
+    void bufferQueueArr(const char *data, uint size);
+    
+    uint8_t bufferDequeue(char *data);
+    
+    uint bufferDequeueArr(char *data, uint len);
+    
+    uint8_t bufferPeek(char *data, uint index);
+
+    uint8_t bufferIsEmpty();
+    
+    uint8_t bufferIsFull();
+    
+    uint bufferNumItems();
+
+    uint8_t FIFO::buffer_peek(char *data, uint index);
 
 };
 
@@ -34,44 +71,95 @@ FIFO::~FIFO()
 {
 }
 
-int FIFO::getFuellstand()
-{
-    return puffer.size();
+
+void FIFO::bufferInit() {
+  buffer.tailIndex = 0;
+  buffer.headIndex = 0;
 }
 
-int FIFO::getMaxFuellstand()
-{
-    return fuellstandMax;
+void FIFO::bufferQueue(char data) {
+  /* Is buffer full? */
+  if(bufferIsFull()) {
+    /* Is going to overwrite the oldest byte */
+    /* Increase tail index */
+    buffer.tailIndex = ((buffer.tailIndex + 1) & BUFFER_MASK);
+  }
+
+  /* Place data in buffer */
+  buffer.buffer[buffer.headIndex] = data;
+  buffer.headIndex = ((buffer.headIndex + 1) & BUFFER_MASK);
 }
 
-int FIFO::push(int value)
-{
-    if (puffer.size() < fuellstandMax)
-    {
-        puffer.push_back(value);
-        return 0;
-    }
-    else
-    {
-        return 1;
-    }
+void FIFO::bufferQueueArr(const char *data, uint size) {
+  /* Add bytes; one by one */
+  uint i;
+  
+  for(i = 0; i < size; i++) {
+    bufferQueue(data[i]);
+  }
 }
 
-int FIFO::pop()
-{
-    int retVal;
-    if (puffer.size() > 0)
-    {
-        retVal = puffer[0];
-        puffer.erase(puffer.begin());
-        return retVal;
-    }
-    
+uint8_t FIFO::bufferDequeue(char *data) {
+  if(bufferIsEmpty()) {
+    /* No items */
+    return 0;
+  }
+  
+  *data = buffer.buffer[buffer.tailIndex];
+  buffer.tailIndex = ((buffer.tailIndex + 1) & BUFFER_MASK);
+  return 1;
 }
+
+uint FIFO::bufferDequeueArr(char *data, uint len) {
+  char *data_ptr = data;
+  uint cnt = 0;
+
+  if(bufferIsEmpty()) {
+    /* No items */
+    return 0;
+  }
+
+  while((cnt < len) && bufferDequeue(data_ptr)) {
+    cnt++;
+    data_ptr++;
+  }
+  return cnt;
+}
+
+uint8_t FIFO::buffer_peek(char *data, uint index) {
+  /* Add index to pointer */
+  uint dataIndex = ((buffer.tailIndex + index) & BUFFER_MASK);
+  *data = buffer.buffer[dataIndex];
+
+  if(index >= bufferNumItems()) {
+    /* No items at index */
+    return 0;
+  }
+  
+  return 1;
+}
+
+uint8_t FIFO::bufferIsEmpty() {
+    return (buffer.headIndex == buffer.tailIndex);
+}
+
+uint8_t FIFO::bufferIsFull() {
+    return ((buffer.headIndex - buffer.tailIndex) & BUFFER_MASK) == BUFFER_MASK;
+}
+
+uint FIFO::bufferNumItems() {
+    return ((buffer.headIndex - buffer.tailIndex) & BUFFER_MASK);
+}
+
+/*************************************************
+ * ***********************************************
+ * ***********************************************
+ */
+
 
 void stage1(FIFO & outputFifo)
 {
-    if (outputFifo.getMaxFuellstand() > outputFifo.getFuellstand() )
+    if ()
     {
         /* code */
     }
